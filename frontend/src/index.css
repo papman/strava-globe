@@ -1,0 +1,43 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --surface-2: #f0f0f1;
+  --border: #e0e0e2;
+  --text: #111111;
+  --text-muted: #777;
+  --strava: #fc4c02;
+  --strava-hover: #e44302;
+  --accent: #2563eb;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Mobile adjustments */
+@media (max-width: 767px) {
+  /* Larger touch targets for filter chips */
+  .pac-container {
+    font-size: 15px !important;
+  }
+}
