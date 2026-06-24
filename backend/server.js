@@ -1,19 +1,53 @@
 require("dotenv").config();
 const express = require("express");
 const session = require("express-session");
-const FileStore = require("session-file-store")(session);
+const pgSession = require("connect-pg-simple")(session);
+const { Pool } = require("pg");
 const cors = require("cors");
 const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const IS_PROD = process.env.NODE_ENV === "production";
 
+// ─── Database ─────────────────────────────────────────────────────────────────
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+});
+
+// Create tables if they don't exist
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS session (
+      sid VARCHAR NOT NULL PRIMARY KEY,
+      sess JSON NOT NULL,
+      expire TIMESTAMP(6) NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS session_expire_idx ON session (expire);
+
+    CREATE TABLE IF NOT EXISTS access_log (
+      athlete_id VARCHAR PRIMARY KEY,
+      name VARCHAR,
+      profile VARCHAR,
+      city VARCHAR,
+      country VARCHAR,
+      first_seen TIMESTAMP DEFAULT NOW(),
+      last_seen TIMESTAMP DEFAULT NOW(),
+      login_count INTEGER DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS access_totals (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      total_logins INTEGER DEFAULT 0
+    );
+    INSERT INTO access_totals (id, total_logins) VALUES (1, 0) ON CONFLICT DO NOTHING;
+  `);
+}
+initDb().catch(console.error);
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
-// Trust Railway/Render proxy so req.secure works correctly
 app.set("trust proxy", 1);
 
 app.use(
@@ -31,17 +65,17 @@ app.use(express.json());
 
 app.use(
   session({
-    store: new FileStore({
-      path: path.join(__dirname, "sessions"),
-      retries: 1,
-      ttl: 86400, // 24 hours in seconds
+    store: new pgSession({
+      pool,
+      tableName: "session",
+      pruneSessionInterval: 60 * 15, // prune expired sessions every 15 min
     }),
     secret: process.env.SESSION_SECRET || "strava-globe-secret-change-me",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: IS_PROD,        // HTTPS only in production
-      sameSite: IS_PROD ? "none" : "lax", // "none" needed for cross-origin in prod
+      secure: IS_PROD,
+      sameSite: IS_PROD ? "none" : "lax",
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
     },
@@ -137,43 +171,30 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// ─── Access log (persisted to disk) ──────────────────────────────────────────
+// ─── Access log (persisted to Postgres) ──────────────────────────────────────
 
-const ACCESS_LOG_FILE = path.join(__dirname, "access-log.json");
-
-function loadAccessLog() {
-  try {
-    if (fs.existsSync(ACCESS_LOG_FILE)) {
-      return JSON.parse(fs.readFileSync(ACCESS_LOG_FILE, "utf8"));
-    }
-  } catch {}
-  return { totalLogins: 0, athletes: {} };
-}
-
-function saveAccessLog(log) {
-  try { fs.writeFileSync(ACCESS_LOG_FILE, JSON.stringify(log, null, 2)); } catch {}
-}
-
-const accessLog = loadAccessLog();
-
-function recordAccess(athlete) {
+async function recordAccess(athlete) {
   const id = String(athlete.id);
-  accessLog.totalLogins++;
-  if (!accessLog.athletes[id]) {
-    accessLog.athletes[id] = {
-      id,
-      name: `${athlete.firstname} ${athlete.lastname}`.trim(),
-      profile: athlete.profile_medium || athlete.profile || null,
-      city: athlete.city || null,
-      country: athlete.country || null,
-      firstSeen: new Date().toISOString(),
-      lastSeen: new Date().toISOString(),
-      loginCount: 0,
-    };
-  }
-  accessLog.athletes[id].lastSeen = new Date().toISOString();
-  accessLog.athletes[id].loginCount++;
-  saveAccessLog(accessLog);
+  const name = `${athlete.firstname} ${athlete.lastname}`.trim();
+  const profile = athlete.profile_medium || athlete.profile || null;
+  const city = athlete.city || null;
+  const country = athlete.country || null;
+
+  await pool.query(`
+    INSERT INTO access_log (athlete_id, name, profile, city, country, first_seen, last_seen, login_count)
+    VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), 1)
+    ON CONFLICT (athlete_id) DO UPDATE
+      SET name = EXCLUDED.name,
+          profile = EXCLUDED.profile,
+          city = EXCLUDED.city,
+          country = EXCLUDED.country,
+          last_seen = NOW(),
+          login_count = access_log.login_count + 1
+  `, [id, name, profile, city, country]);
+
+  await pool.query(`
+    UPDATE access_totals SET total_logins = total_logins + 1 WHERE id = 1
+  `);
 }
 
 // ─── Activity cache ───────────────────────────────────────────────────────────
@@ -223,14 +244,15 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-app.get("/admin/stats", requireAdmin, (req, res) => {
-  const athletes = Object.values(accessLog.athletes).sort(
-    (a, b) => new Date(b.lastSeen) - new Date(a.lastSeen)
-  );
+app.get("/admin/stats", requireAdmin, async (req, res) => {
+  const [totalsResult, athletesResult] = await Promise.all([
+    pool.query("SELECT total_logins FROM access_totals WHERE id = 1"),
+    pool.query("SELECT athlete_id as id, name, profile, city, country, first_seen as \"firstSeen\", last_seen as \"lastSeen\", login_count as \"loginCount\" FROM access_log ORDER BY last_seen DESC"),
+  ]);
   res.json({
-    totalLogins: accessLog.totalLogins,
-    uniqueUsers: athletes.length,
-    athletes,
+    totalLogins: totalsResult.rows[0]?.total_logins || 0,
+    uniqueUsers: athletesResult.rows.length,
+    athletes: athletesResult.rows,
   });
 });
 
