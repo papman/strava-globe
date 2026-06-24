@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import API from "../api.js";
 
 export default function Admin() {
   const [authed, setAuthed] = useState(false);

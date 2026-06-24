@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import API from "../api.js";
 
 export default function Landing() {
   return (

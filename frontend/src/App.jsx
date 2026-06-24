@@ -4,7 +4,7 @@ import Landing from "./components/Landing.jsx";
 import MapView from "./components/MapView.jsx";
 import Admin from "./components/Admin.jsx";
 
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import API from "./api.js";
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 const MOCK_ATHLETE = {
