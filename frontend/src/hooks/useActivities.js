@@ -9,7 +9,7 @@
 import { useState, useEffect, useRef } from "react";
 import { mockActivities } from "../mock/activities.js";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 export function useActivities() {
