@@ -63,7 +63,11 @@ export function useActivities() {
               const chunk = JSON.parse(line);
               if (chunk.done) break;
               if (chunk.error) {
-                setError(chunk.error);
+                if (chunk.error === "reauth_required") {
+                  setError("reauth_required");
+                } else {
+                  setError(chunk.error);
+                }
                 break;
               }
               if (chunk.waiting) {

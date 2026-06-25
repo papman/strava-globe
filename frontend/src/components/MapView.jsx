@@ -496,7 +496,51 @@ export default function MapView({ athlete, onLogout }) {
           }}
         />
 
-        {error && (
+        {error === "reauth_required" && (
+          <div style={{
+            position: "absolute", inset: 0, zIndex: 200,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(244,244,245,0.85)", backdropFilter: "blur(4px)",
+          }}>
+            <div style={{
+              background: "#fff", border: "1px solid #e0e0e2", borderRadius: 16,
+              padding: "32px 40px", textAlign: "center", maxWidth: 380,
+              boxShadow: "0 4px 24px rgba(0,0,0,0.1)",
+            }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>🔗</div>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#111", marginBottom: 8 }}>
+                Reconnect to Strava
+              </h2>
+              <p style={{ fontSize: 14, color: "#666", marginBottom: 24, lineHeight: 1.6 }}>
+                Your Strava connection is missing activity permissions. Please disconnect and reconnect to grant the required access.
+              </p>
+              <a
+                href="https://www.strava.com/settings/apps"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: "block", background: "#fc4c02", color: "#fff",
+                  borderRadius: 10, padding: "11px 20px", fontSize: 14,
+                  fontWeight: 600, textDecoration: "none", marginBottom: 10,
+                }}
+              >
+                Disconnect on Strava
+              </a>
+              <button
+                onClick={onLogout}
+                style={{
+                  background: "none", border: "1px solid #e0e0e2", borderRadius: 10,
+                  padding: "10px 20px", fontSize: 14, color: "#777",
+                  cursor: "pointer", width: "100%",
+                }}
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && error !== "reauth_required" && (
           <div style={styles.errorBanner}>
             ⚠️ {error}
           </div>

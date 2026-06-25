@@ -307,6 +307,12 @@ app.get("/api/activities", requireAuth, async (req, res) => {
         });
       } catch (err) {
         const status = err.response?.status;
+        if (status === 401) {
+          // Token missing required scope or expired — user needs to reconnect
+          res.write(JSON.stringify({ error: "reauth_required" }) + "\n");
+          res.end();
+          return;
+        }
         if (status === 429) {
           // Rate limited — figure out how long to wait
           // Strava returns a 15-min window; wait it out and retry
