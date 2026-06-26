@@ -12,15 +12,16 @@ import { geocodeActivities, countryCodeToFlag, decodePolylineStart } from "../ut
 // ─── Share card canvas generator ─────────────────────────────────────────────
 
 /**
- * Layout (1080 × 1920):
- *   0–8      Orange accent bar
- *   8–240    Brand + user name
- *   240–310  Stats row (3 pills)
- *   310–360  "Your Heatmap" label
- *   360–870  World heatmap (equirectangular projection, drawn on canvas)
- *   870–940  "Top Cities" label
- *   940–1840 10 city rows × 90px
- *   1840–1920 Footer
+ * Layout (1080 × 1920) — dark premium design:
+ *   0–10     Orange gradient bar
+ *   10–130   Brand
+ *   130–230  User name
+ *   230–350  Stats row (3 inline columns)
+ *   350–400  Map section label
+ *   400–970  World map (570px)
+ *   970–1030 Cities section label
+ *   1030–1900 10 city rows × 87px
+ *   1900–1920 Footer
  */
 async function generateShareCard({ athlete, totalActivities, totalKm, countries, cities, activities, worldGeo, projection, geoPath }) {
   const W = 1080;
@@ -30,112 +31,116 @@ async function generateShareCard({ athlete, totalActivities, totalKm, countries,
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // ── Background (warm cream) ─────────────────────────────────────────────────
-  ctx.fillStyle = "#faf7f2";
+  // ── Background — deep dark blue-black ──────────────────────────────────────
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, "#12121f");
+  bgGrad.addColorStop(1, "#0a0a15");
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
   // ── Orange top bar ──────────────────────────────────────────────────────────
   const barGrad = ctx.createLinearGradient(0, 0, W, 0);
   barGrad.addColorStop(0, "#fc4c02");
-  barGrad.addColorStop(1, "#ff8c42");
+  barGrad.addColorStop(1, "#ff7a30");
   ctx.fillStyle = barGrad;
   ctx.fillRect(0, 0, W, 10);
 
   // ── Brand ───────────────────────────────────────────────────────────────────
   ctx.textAlign = "center";
   ctx.fillStyle = "#fc4c02";
-  ctx.font = "bold 32px Arial";
-  ctx.fillText("STRAVA GLOBE", W / 2, 76);
+  ctx.font = "bold 30px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("STRAVA GLOBE", W / 2, 82);
 
-  ctx.fillStyle = "#111111";
-  ctx.font = "bold 68px Arial";
+  // User name
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 72px 'Helvetica Neue', Arial, sans-serif";
   const name = athlete ? `${athlete.firstname} ${athlete.lastname}` : "My Stats";
-  ctx.fillText(name, W / 2, 162);
+  ctx.fillText(name, W / 2, 180);
 
-  // Thin divider under name
-  ctx.strokeStyle = "rgba(0,0,0,0.08)";
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(80, 185); ctx.lineTo(W - 80, 185); ctx.stroke();
-
-  // ── Stats pills ─────────────────────────────────────────────────────────────
-  const pills = [
+  // ── Stats row — 3 columns, vertical dividers ────────────────────────────────
+  const stats = [
     { value: totalActivities.toLocaleString(), label: "Activities" },
-    { value: `${totalKm.toLocaleString()}km`, label: "Distance" },
+    { value: `${totalKm.toLocaleString()} km`, label: "Distance" },
     { value: countries.length.toString(), label: "Countries" },
   ];
-  const pillW = 300, pillH = 60, pillY = 202, pillGap = 20;
-  const pillsTotal = pills.length * pillW + (pills.length - 1) * pillGap;
-  const pillStartX = (W - pillsTotal) / 2;
-  pills.forEach(({ value, label }, i) => {
-    const px = pillStartX + i * (pillW + pillGap);
-    // Pill border
-    ctx.strokeStyle = "rgba(252,76,2,0.25)";
-    ctx.lineWidth = 1.5;
-    ctx.fillStyle = "#ffffff";
-    roundRect(ctx, px, pillY, pillW, pillH, 30);
-    ctx.fill();
-    ctx.stroke();
-    // Value
-    ctx.fillStyle = "#fc4c02";
-    ctx.font = "bold 28px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(value, px + pillW / 2, pillY + 24);
-    // Label
-    ctx.fillStyle = "#999999";
-    ctx.font = "20px Arial";
-    ctx.fillText(label, px + pillW / 2, pillY + 48);
-  });
+  const statColW = W / 3;
+  const statTop = 225;
 
-  // ── "Your Heatmap" label ────────────────────────────────────────────────────
-  const mapLabelY = 298;
-  ctx.textAlign = "left";
-  ctx.fillStyle = "#999999";
-  ctx.font = "24px Arial";
-  ctx.fillText("YOUR HEATMAP", 60, mapLabelY);
-
-  // ── World heatmap (d3 equirectangular projection) ───────────────────────────
-  const MAP_X = 40, MAP_Y = 310, MAP_W = W - 80, MAP_H = 520;
-
-  // Map background
-  ctx.fillStyle = "#0a1628";
-  roundRect(ctx, MAP_X, MAP_Y, MAP_W, MAP_H, 20);
+  // Subtle surface behind stats
+  ctx.fillStyle = "rgba(255,255,255,0.04)";
+  roundRect(ctx, 0, statTop, W, 115, 0);
   ctx.fill();
 
-  // Clip everything inside the rounded map panel
+  stats.forEach(({ value, label }, i) => {
+    const cx = i * statColW + statColW / 2;
+
+    // Vertical divider between columns
+    if (i > 0) {
+      ctx.strokeStyle = "rgba(255,255,255,0.1)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(i * statColW, statTop + 20);
+      ctx.lineTo(i * statColW, statTop + 95);
+      ctx.stroke();
+    }
+
+    // Value
+    ctx.fillStyle = "#fc4c02";
+    ctx.font = "bold 44px 'Helvetica Neue', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(value, cx, statTop + 58);
+
+    // Label
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.font = "22px 'Helvetica Neue', Arial, sans-serif";
+    ctx.fillText(label.toUpperCase(), cx, statTop + 88);
+  });
+
+  // ── Section label — heatmap ─────────────────────────────────────────────────
+  ctx.textAlign = "left";
+  ctx.fillStyle = "rgba(255,255,255,0.3)";
+  ctx.font = "22px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("YOUR ACTIVITY HEATMAP", 56, 386);
+
+  // ── World map panel ─────────────────────────────────────────────────────────
+  const MAP_X = 0, MAP_Y = 400, MAP_W = W, MAP_H = 570;
+
+  ctx.fillStyle = "#060c18";
+  ctx.fillRect(MAP_X, MAP_Y, MAP_W, MAP_H);
+
   ctx.save();
-  roundRect(ctx, MAP_X, MAP_Y, MAP_W, MAP_H, 20);
+  ctx.rect(MAP_X, MAP_Y, MAP_W, MAP_H);
   ctx.clip();
 
-  // ── Country shapes via d3-geo ────────────────────────────────────────────
   if (worldGeo && projection && geoPath) {
     const path = geoPath(projection, ctx);
 
-    // Ocean-fill sphere
+    // Ocean
     ctx.beginPath();
     path({ type: "Sphere" });
-    ctx.fillStyle = "#071120";
+    ctx.fillStyle = "#060c18";
     ctx.fill();
 
-    // Land
+    // Land — blue-slate, clearly distinct from ocean
     ctx.beginPath();
     path(worldGeo);
-    ctx.fillStyle = "#1a3a5c";
+    ctx.fillStyle = "#1e3d5c";
     ctx.fill();
-    ctx.strokeStyle = "rgba(80,150,220,0.45)";
-    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = "rgba(90,160,240,0.4)";
+    ctx.lineWidth = 0.7;
     ctx.stroke();
 
-    // Graticule (30° grid)
+    // Graticule
     const { geoGraticule } = await import("d3-geo");
     const graticule = geoGraticule().step([30, 30])();
     ctx.beginPath();
     path(graticule);
-    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.strokeStyle = "rgba(255,255,255,0.04)";
     ctx.lineWidth = 0.5;
     ctx.stroke();
   }
 
-  // ── Activity heatmap dots ────────────────────────────────────────────────
+  // Activity glow dots
   const GRID = 1.5;
   const heatGrid = {};
   for (const act of activities) {
@@ -152,7 +157,6 @@ async function generateShareCard({ athlete, totalActivities, totalKm, countries,
   const maxCount = Math.max(...clusters.map(c => c.count), 1);
 
   for (const { lat, lng, count } of clusters) {
-    // Use d3 projection if available, otherwise fall back to equirectangular
     let px, py;
     if (projection) {
       [px, py] = projection([lng, lat]);
@@ -163,12 +167,12 @@ async function generateShareCard({ athlete, totalActivities, totalKm, countries,
     if (!isFinite(px) || !isFinite(py)) continue;
 
     const scale = 0.25 + 0.75 * Math.sqrt(count / maxCount);
-    const r = Math.max(5, scale * 26);
+    const r = Math.max(5, scale * 28);
 
     const grad = ctx.createRadialGradient(px, py, 0, px, py, r);
-    grad.addColorStop(0,    `rgba(255,255,255,${Math.min(1, 0.75 + 0.25 * scale)})`);
-    grad.addColorStop(0.2,  `rgba(252,76,2,${Math.min(1, 0.65 + 0.35 * scale)})`);
-    grad.addColorStop(0.55, `rgba(255,120,50,${0.4 * scale})`);
+    grad.addColorStop(0,    `rgba(255,255,255,${Math.min(1, 0.9 * scale + 0.1)})`);
+    grad.addColorStop(0.15, `rgba(255,100,30,${Math.min(1, 0.85 * scale + 0.05)})`);
+    grad.addColorStop(0.5,  `rgba(252,76,2,${0.45 * scale})`);
     grad.addColorStop(1,    "rgba(252,76,2,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
@@ -178,69 +182,78 @@ async function generateShareCard({ athlete, totalActivities, totalKm, countries,
 
   ctx.restore();
 
-  // ── "Top Cities" label ──────────────────────────────────────────────────────
+  // Thin orange line at bottom of map panel
+  ctx.fillStyle = "rgba(252,76,2,0.25)";
+  ctx.fillRect(0, MAP_Y + MAP_H, W, 1);
+
+  // ── Section label — cities ──────────────────────────────────────────────────
   ctx.textAlign = "left";
-  ctx.fillStyle = "#999999";
-  ctx.font = "24px Arial";
-  ctx.fillText("TOP CITIES", 60, 876);
+  ctx.fillStyle = "rgba(255,255,255,0.3)";
+  ctx.font = "22px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("TOP CITIES", 56, 1008);
 
   // ── City rows ───────────────────────────────────────────────────────────────
-  const CITY_TOP = 894;
-  const CITY_ROW_H = 95;
+  const CITY_TOP = 1024;
+  const CITY_ROW_H = 87;
   const topCities = cities.slice(0, 10);
 
   topCities.forEach(({ name, country, countryCode, count }, i) => {
     const rowY = CITY_TOP + i * CITY_ROW_H;
+    const isLast = i === topCities.length - 1;
 
-    // Row background (alternating — light cream tones)
-    ctx.fillStyle = i % 2 === 0 ? "rgba(0,0,0,0.025)" : "rgba(255,255,255,0.6)";
-    ctx.fillRect(40, rowY, W - 80, CITY_ROW_H);
+    // Subtle alternating row tint
+    if (i % 2 === 0) {
+      ctx.fillStyle = "rgba(255,255,255,0.025)";
+      ctx.fillRect(0, rowY, W, CITY_ROW_H);
+    }
 
-    // Rank number
-    ctx.fillStyle = "#cccccc";
-    ctx.font = "bold 28px Arial";
-    ctx.textAlign = "right";
-    ctx.fillText(`${i + 1}`, 96, rowY + 58);
+    // Rank — orange, small
+    ctx.fillStyle = "#fc4c02";
+    ctx.font = "bold 24px 'Helvetica Neue', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(i + 1, 44, rowY + 50);
 
     // Flag
-    ctx.font = "48px 'Apple Color Emoji','Noto Color Emoji',serif";
+    ctx.font = "44px 'Apple Color Emoji','Noto Color Emoji',serif";
     ctx.textAlign = "left";
-    ctx.fillText(countryCodeToFlag(countryCode), 108, rowY + 64);
+    ctx.fillText(countryCodeToFlag(countryCode), 72, rowY + 56);
 
     // City name
-    ctx.fillStyle = "#111111";
-    ctx.font = "bold 34px Arial";
-    ctx.textAlign = "left";
-    ctx.fillText(name, 186, rowY + 48);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 32px 'Helvetica Neue', Arial, sans-serif";
+    ctx.fillText(name, 148, rowY + 42);
 
-    // Country name
-    ctx.fillStyle = "#888888";
-    ctx.font = "24px Arial";
-    ctx.fillText(country || "", 186, rowY + 78);
+    // Country
+    ctx.fillStyle = "rgba(255,255,255,0.38)";
+    ctx.font = "22px 'Helvetica Neue', Arial, sans-serif";
+    ctx.fillText(country || "", 148, rowY + 70);
 
-    // Activity count (right-aligned, orange)
-    const countStr = `${count} activit${count === 1 ? "y" : "ies"}`;
-    ctx.font = "bold 26px Arial";
-    ctx.textAlign = "right";
+    // Activity count — right side, orange
     ctx.fillStyle = "#fc4c02";
-    ctx.fillText(countStr, W - 60, rowY + 58);
+    ctx.font = "bold 26px 'Helvetica Neue', Arial, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(`${count}`, W - 56, rowY + 50);
+
+    ctx.fillStyle = "rgba(252,76,2,0.5)";
+    ctx.font = "18px 'Helvetica Neue', Arial, sans-serif";
+    ctx.fillText(count === 1 ? "activity" : "activities", W - 56, rowY + 72);
 
     // Divider
-    if (i < topCities.length - 1) {
-      ctx.strokeStyle = "rgba(0,0,0,0.06)";
+    if (!isLast) {
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(40, rowY + CITY_ROW_H);
-      ctx.lineTo(W - 40, rowY + CITY_ROW_H);
+      ctx.moveTo(56, rowY + CITY_ROW_H);
+      ctx.lineTo(W - 56, rowY + CITY_ROW_H);
       ctx.stroke();
     }
   });
 
   // ── Footer ──────────────────────────────────────────────────────────────────
-  ctx.fillStyle = "#bbbbbb";
-  ctx.font = "28px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("strava-globe.vercel.app", W / 2, H - 52);
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.font = "22px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("strava-globe.vercel.app", W / 2, H - 14);
 
   return canvas;
 }
@@ -304,7 +317,7 @@ export default function SummaryPage({ athlete }) {
         import("world-atlas/countries-110m.json"),
       ]);
 
-      const MAP_X = 40, MAP_Y = 310, MAP_W = 1000, MAP_H = 520;
+      const MAP_X = 0, MAP_Y = 400, MAP_W = 1080, MAP_H = 570;
       const worldGeo = feature(worldRaw, worldRaw.objects.countries);
 
       // Build an equirectangular projection fitted exactly to the map panel
