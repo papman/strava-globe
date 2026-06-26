@@ -94,32 +94,85 @@ function generateShareCard({ athlete, totalActivities, totalKm, countries, citie
   ctx.fillText("YOUR HEATMAP", 60, mapLabelY);
 
   // ── World heatmap (equirectangular projection) ──────────────────────────────
-  const MAP_X = 40, MAP_Y = 300, MAP_W = W - 80, MAP_H = 520;
+  const MAP_X = 40, MAP_Y = 310, MAP_W = W - 80, MAP_H = 520;
 
-  // Map background
-  ctx.fillStyle = "#060d1a";
+  // Map background — slightly lighter navy so continents read clearly
+  ctx.fillStyle = "#0a1628";
   roundRect(ctx, MAP_X, MAP_Y, MAP_W, MAP_H, 20);
   ctx.fill();
 
+  // Helper: lat/lng → canvas pixel
+  function toMapPx(lng, lat) {
+    return [
+      MAP_X + ((lng + 180) / 360) * MAP_W,
+      MAP_Y + ((90 - lat) / 180) * MAP_H,
+    ];
+  }
+
+  // Clip all map drawing to the rounded rect
+  ctx.save();
+  roundRect(ctx, MAP_X, MAP_Y, MAP_W, MAP_H, 20);
+  ctx.clip();
+
   // Graticule — subtle lat/lng grid every 30°
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.strokeStyle = "rgba(252,76,2,0.08)";
   ctx.lineWidth = 1;
   for (let lat = -90; lat <= 90; lat += 30) {
-    const py = MAP_Y + ((90 - lat) / 180) * MAP_H;
+    const [, py] = toMapPx(0, lat);
     ctx.beginPath(); ctx.moveTo(MAP_X, py); ctx.lineTo(MAP_X + MAP_W, py); ctx.stroke();
   }
   for (let lng = -180; lng <= 180; lng += 30) {
-    const px = MAP_X + ((lng + 180) / 360) * MAP_W;
+    const [px] = toMapPx(lng, 0);
     ctx.beginPath(); ctx.moveTo(px, MAP_Y); ctx.lineTo(px, MAP_Y + MAP_H); ctx.stroke();
   }
-
   // Equator + prime meridian slightly brighter
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  ctx.lineWidth = 1;
-  const eqY = MAP_Y + MAP_H / 2;
+  ctx.strokeStyle = "rgba(252,76,2,0.18)";
+  const [, eqY] = toMapPx(0, 0);
   ctx.beginPath(); ctx.moveTo(MAP_X, eqY); ctx.lineTo(MAP_X + MAP_W, eqY); ctx.stroke();
-  const pmX = MAP_X + MAP_W / 2;
+  const [pmX] = toMapPx(0, 0);
   ctx.beginPath(); ctx.moveTo(pmX, MAP_Y); ctx.lineTo(pmX, MAP_Y + MAP_H); ctx.stroke();
+
+  // Simplified continent outlines [lng, lat] polygons
+  const CONTINENTS = [
+    // North America
+    [[-168,72],[-140,62],[-125,49],[-117,32],[-97,26],[-83,9],[-80,25],[-75,44],[-53,47],[-64,60],[-80,63],[-95,72],[-120,72],[-168,72]],
+    // Greenland
+    [[-52,83],[-18,76],[-18,70],[-44,60],[-52,63],[-60,76],[-52,83]],
+    // South America
+    [[-72,12],[-50,-2],[-35,-8],[-35,-55],[-68,-54],[-75,-42],[-80,-5],[-72,12]],
+    // Europe (mainland + Iberia + Scandinavia roughly merged)
+    [[-9,38],[2,36],[12,37],[28,41],[30,47],[25,55],[30,60],[28,71],[18,70],[15,60],[5,58],[-3,58],[-5,48],[-9,38]],
+    // British Isles (tiny — skip at this scale, absorbed into Europe visually)
+    // Africa
+    [[-17,15],[0,5],[8,-3],[12,-5],[33,-34],[42,12],[43,22],[32,32],[10,37],[-5,35],[-17,28],[-17,15]],
+    // Asia (mainland Eurasia east of Europe)
+    [[26,36],[40,36],[42,12],[58,22],[80,8],[100,-5],[105,1],[120,5],[122,25],[130,38],[142,47],[141,72],[105,72],[60,68],[26,70],[26,36]],
+    // Japan (simplified)
+    [[130,31],[134,34],[141,44],[141,38],[136,34],[131,33],[130,31]],
+    // SE Asia peninsula (Indochina)
+    [[98,5],[100,-2],[104,1],[105,10],[100,14],[98,5]],
+    // Australia
+    [[114,-22],[122,-18],[136,-12],[148,-18],[154,-26],[152,-38],[138,-38],[120,-34],[114,-22]],
+    // Antarctica (full bottom band)
+    [[-180,-68],[-120,-64],[-60,-65],[0,-68],[60,-65],[120,-64],[180,-68],[180,-90],[-180,-90]],
+  ];
+
+  // Draw continent fills + neon orange outlines
+  for (const poly of CONTINENTS) {
+    ctx.beginPath();
+    poly.forEach(([lng, lat], i) => {
+      const [x, y] = toMapPx(lng, lat);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.fillStyle = "rgba(252,76,2,0.09)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(252,76,2,0.38)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  ctx.restore();
 
   // Cluster activities into 1.5° grid cells
   const GRID = 1.5;
@@ -137,22 +190,26 @@ function generateShareCard({ athlete, totalActivities, totalKm, countries, citie
   const clusters = Object.values(heatGrid);
   const maxCount = Math.max(...clusters.map(c => c.count), 1);
 
-  // Draw glowing dots
+  // Draw glowing dots (clipped to map bounds)
+  ctx.save();
+  roundRect(ctx, MAP_X, MAP_Y, MAP_W, MAP_H, 20);
+  ctx.clip();
   for (const { lat, lng, count } of clusters) {
-    const px = MAP_X + ((lng + 180) / 360) * MAP_W;
-    const py = MAP_Y + ((90 - lat) / 180) * MAP_H;
+    const [px, py] = toMapPx(lng, lat);
     const scale = 0.25 + 0.75 * Math.sqrt(count / maxCount);
     const r = Math.max(5, scale * 28);
 
     const grad = ctx.createRadialGradient(px, py, 0, px, py, r);
-    grad.addColorStop(0,   `rgba(252,76,2,${Math.min(1, 0.65 + 0.35 * scale)})`);
-    grad.addColorStop(0.35, `rgba(255,120,50,${0.5 * scale})`);
+    grad.addColorStop(0,   `rgba(255,255,255,${Math.min(1, 0.7 + 0.3 * scale)})`);
+    grad.addColorStop(0.2, `rgba(252,76,2,${Math.min(1, 0.6 + 0.4 * scale)})`);
+    grad.addColorStop(0.6, `rgba(255,120,50,${0.4 * scale})`);
     grad.addColorStop(1,   "rgba(252,76,2,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(px, py, r, 0, Math.PI * 2);
     ctx.fill();
   }
+  ctx.restore();
 
   // ── "Top Cities" label ──────────────────────────────────────────────────────
   ctx.textAlign = "left";
