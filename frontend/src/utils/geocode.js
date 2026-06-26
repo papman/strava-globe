@@ -124,37 +124,56 @@ export async function geocodeActivities(activities, onProgress) {
     // localStorage full — skip
   }
 
-  // Tally countries and cities from grid groups
+  // Tally countries and cities from grid groups, tracking centroid lat/lng
   const countriesMap = {};
   const citiesMap = {};
 
-  for (const [key, { count }] of Object.entries(gridGroups)) {
+  for (const [key, { lat, lng, count }] of Object.entries(gridGroups)) {
     const geo = cache[key];
     if (!geo) continue;
 
     if (geo.country) {
       if (!countriesMap[geo.country]) {
-        countriesMap[geo.country] = { name: geo.country, code: geo.countryCode, count: 0 };
+        countriesMap[geo.country] = {
+          name: geo.country, code: geo.countryCode, count: 0,
+          _latSum: 0, _lngSum: 0, _cells: 0,
+        };
       }
-      countriesMap[geo.country].count += count;
+      const c = countriesMap[geo.country];
+      c.count += count;
+      c._latSum += lat * count;
+      c._lngSum += lng * count;
+      c._cells += count;
     }
 
     if (geo.city && geo.country) {
       const cityKey = `${geo.city}||${geo.country}`;
       if (!citiesMap[cityKey]) {
         citiesMap[cityKey] = {
-          name: geo.city,
-          country: geo.country,
-          countryCode: geo.countryCode,
-          count: 0,
+          name: geo.city, country: geo.country, countryCode: geo.countryCode, count: 0,
+          _latSum: 0, _lngSum: 0, _cells: 0,
         };
       }
-      citiesMap[cityKey].count += count;
+      const c = citiesMap[cityKey];
+      c.count += count;
+      c._latSum += lat * count;
+      c._lngSum += lng * count;
+      c._cells += count;
     }
   }
 
-  return {
-    countries: Object.values(countriesMap).sort((a, b) => b.count - a.count),
-    cities: Object.values(citiesMap).sort((a, b) => b.count - a.count),
-  };
+  // Convert accumulators to weighted centroids, drop private fields
+  const finalCountries = Object.values(countriesMap).map(({ _latSum, _lngSum, _cells, ...rest }) => ({
+    ...rest,
+    lat: _latSum / _cells,
+    lng: _lngSum / _cells,
+  })).sort((a, b) => b.count - a.count);
+
+  const finalCities = Object.values(citiesMap).map(({ _latSum, _lngSum, _cells, ...rest }) => ({
+    ...rest,
+    lat: _latSum / _cells,
+    lng: _lngSum / _cells,
+  })).sort((a, b) => b.count - a.count);
+
+  return { countries: finalCountries, cities: finalCities };
 }

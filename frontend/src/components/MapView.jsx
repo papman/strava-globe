@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   APIProvider,
   Map,
@@ -290,6 +290,22 @@ function SearchControl({ inputRef }) {
   return null;
 }
 
+// ─── MapFocuser — pans/zooms the map to a location passed via router state ────
+
+function MapFocuser({ center, zoom }) {
+  const map = useMap();
+  const applied = useRef(false);
+
+  useEffect(() => {
+    if (!map || applied.current) return;
+    applied.current = true;
+    map.panTo(center);
+    map.setZoom(zoom);
+  }, [map, center, zoom]);
+
+  return null;
+}
+
 // ─── Map content (zoom tracking + click-to-zoom) ──────────────────────────────
 
 function MapContent({ activities, onHover, onHoverEnd, onTap, isMobile }) {
@@ -305,6 +321,7 @@ function MapContent({ activities, onHover, onHoverEnd, onTap, isMobile }) {
 
 export default function MapView({ athlete, onLogout }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { activities, loading, progress, error, rateLimitWait, cachedAt, refresh } = useActivities();
   const isMobile = useIsMobile();
   const [hiddenTypes, setHiddenTypes] = useState(new Set());
@@ -568,6 +585,9 @@ export default function MapView({ athlete, onLogout }) {
           >
             <SearchControl inputRef={searchInputRef} />
             <MapContent activities={visibleActivities} onHover={handleHover} onHoverEnd={handleHoverEnd} onTap={handleTap} isMobile={isMobile} />
+            {location.state?.center && (
+              <MapFocuser center={location.state.center} zoom={location.state.zoom ?? 6} />
+            )}
           </Map>
         </APIProvider>
 

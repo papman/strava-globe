@@ -251,12 +251,18 @@ export default function SummaryPage({ athlete }) {
               🌍 Countries Visited
               <span style={styles.sectionCount}>{countries.length}</span>
             </h2>
+            <p style={styles.clickHint}>Tap a country to see your activities there</p>
             <div style={styles.flagGrid}>
-              {countries.map(({ name, code, count }) => (
-                <div key={name} style={styles.flagCard} title={`${name} — ${count} activities`}>
+              {countries.map(({ name, code, count, lat, lng }) => (
+                <div
+                  key={name}
+                  style={styles.flagCard}
+                  title={`${name} — ${count} activities`}
+                  onClick={() => navigate("/map", { state: { center: { lat, lng }, zoom: 5 } })}
+                >
                   <div style={styles.flagEmoji}>{countryCodeToFlag(code)}</div>
                   <div style={styles.flagName}>{name}</div>
-                  <div style={styles.flagCount}>{count}</div>
+                  <div style={styles.flagCount}>{count} activit{count === 1 ? "y" : "ies"}</div>
                 </div>
               ))}
             </div>
@@ -270,9 +276,14 @@ export default function SummaryPage({ athlete }) {
               🏙 Cities
               <span style={styles.sectionCount}>{cities.length}</span>
             </h2>
+            <p style={styles.clickHint}>Tap a city to see your activities there</p>
             <div style={styles.citiesGrid}>
-              {cities.slice(0, 50).map(({ name, countryCode, count }) => (
-                <div key={`${name}-${countryCode}`} style={styles.cityRow}>
+              {cities.slice(0, 50).map(({ name, countryCode, count, lat, lng }) => (
+                <div
+                  key={`${name}-${countryCode}`}
+                  style={styles.cityRow}
+                  onClick={() => navigate("/map", { state: { center: { lat, lng }, zoom: 11 } })}
+                >
                   <span style={styles.cityFlag}>{countryCodeToFlag(countryCode)}</span>
                   <span style={styles.cityName}>{name}</span>
                   <span style={styles.cityCount}>{count}</span>
@@ -444,13 +455,20 @@ const styles = {
     gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
     gap: 10,
   },
+  clickHint: {
+    fontSize: 12,
+    color: "#aaa",
+    marginTop: -10,
+    marginBottom: 12,
+  },
   flagCard: {
     background: "#fff",
     border: "1px solid #e0e0e2",
     borderRadius: 12,
     padding: "14px 8px 10px",
     textAlign: "center",
-    cursor: "default",
+    cursor: "pointer",
+    transition: "border-color 0.15s, box-shadow 0.15s",
   },
   flagEmoji: {
     fontSize: 36,
@@ -481,6 +499,7 @@ const styles = {
     padding: "10px 16px",
     borderBottom: "1px solid #f0f0f1",
     fontSize: 14,
+    cursor: "pointer",
   },
   cityFlag: {
     fontSize: 20,
