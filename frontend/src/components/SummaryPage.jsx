@@ -30,8 +30,8 @@ function generateShareCard({ athlete, totalActivities, totalKm, countries, citie
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // ── Background ──────────────────────────────────────────────────────────────
-  ctx.fillStyle = "#0d1117";
+  // ── Background (warm cream) ─────────────────────────────────────────────────
+  ctx.fillStyle = "#faf7f2";
   ctx.fillRect(0, 0, W, H);
 
   // ── Orange top bar ──────────────────────────────────────────────────────────
@@ -39,18 +39,23 @@ function generateShareCard({ athlete, totalActivities, totalKm, countries, citie
   barGrad.addColorStop(0, "#fc4c02");
   barGrad.addColorStop(1, "#ff8c42");
   ctx.fillStyle = barGrad;
-  ctx.fillRect(0, 0, W, 8);
+  ctx.fillRect(0, 0, W, 10);
 
   // ── Brand ───────────────────────────────────────────────────────────────────
   ctx.textAlign = "center";
   ctx.fillStyle = "#fc4c02";
   ctx.font = "bold 32px Arial";
-  ctx.fillText("STRAVA GLOBE", W / 2, 72);
+  ctx.fillText("STRAVA GLOBE", W / 2, 76);
 
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#111111";
   ctx.font = "bold 68px Arial";
   const name = athlete ? `${athlete.firstname} ${athlete.lastname}` : "My Stats";
-  ctx.fillText(name, W / 2, 160);
+  ctx.fillText(name, W / 2, 162);
+
+  // Thin divider under name
+  ctx.strokeStyle = "rgba(0,0,0,0.08)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(80, 185); ctx.lineTo(W - 80, 185); ctx.stroke();
 
   // ── Stats pills ─────────────────────────────────────────────────────────────
   const pills = [
@@ -58,27 +63,33 @@ function generateShareCard({ athlete, totalActivities, totalKm, countries, citie
     { value: `${totalKm.toLocaleString()}km`, label: "Distance" },
     { value: countries.length.toString(), label: "Countries" },
   ];
-  const pillW = 300, pillH = 56, pillY = 195, pillGap = 20;
+  const pillW = 300, pillH = 60, pillY = 202, pillGap = 20;
   const pillsTotal = pills.length * pillW + (pills.length - 1) * pillGap;
   const pillStartX = (W - pillsTotal) / 2;
   pills.forEach(({ value, label }, i) => {
     const px = pillStartX + i * (pillW + pillGap);
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    roundRect(ctx, px, pillY, pillW, pillH, 28);
+    // Pill border
+    ctx.strokeStyle = "rgba(252,76,2,0.25)";
+    ctx.lineWidth = 1.5;
+    ctx.fillStyle = "#ffffff";
+    roundRect(ctx, px, pillY, pillW, pillH, 30);
     ctx.fill();
+    ctx.stroke();
+    // Value
     ctx.fillStyle = "#fc4c02";
-    ctx.font = "bold 26px Arial";
+    ctx.font = "bold 28px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(value, px + pillW / 2, pillY + 22);
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillText(value, px + pillW / 2, pillY + 24);
+    // Label
+    ctx.fillStyle = "#999999";
     ctx.font = "20px Arial";
-    ctx.fillText(label, px + pillW / 2, pillY + 46);
+    ctx.fillText(label, px + pillW / 2, pillY + 48);
   });
 
   // ── "Your Heatmap" label ────────────────────────────────────────────────────
-  const mapLabelY = 285;
+  const mapLabelY = 298;
   ctx.textAlign = "left";
-  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.fillStyle = "#999999";
   ctx.font = "24px Arial";
   ctx.fillText("YOUR HEATMAP", 60, mapLabelY);
 
@@ -145,54 +156,54 @@ function generateShareCard({ athlete, totalActivities, totalKm, countries, citie
 
   // ── "Top Cities" label ──────────────────────────────────────────────────────
   ctx.textAlign = "left";
-  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.fillStyle = "#999999";
   ctx.font = "24px Arial";
-  ctx.fillText("TOP CITIES", 60, 862);
+  ctx.fillText("TOP CITIES", 60, 876);
 
   // ── City rows ───────────────────────────────────────────────────────────────
-  const CITY_TOP = 880;
+  const CITY_TOP = 894;
   const CITY_ROW_H = 95;
   const topCities = cities.slice(0, 10);
 
   topCities.forEach(({ name, country, countryCode, count }, i) => {
     const rowY = CITY_TOP + i * CITY_ROW_H;
 
-    // Row background (alternating)
-    ctx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)";
+    // Row background (alternating — light cream tones)
+    ctx.fillStyle = i % 2 === 0 ? "rgba(0,0,0,0.025)" : "rgba(255,255,255,0.6)";
     ctx.fillRect(40, rowY, W - 80, CITY_ROW_H);
 
     // Rank number
-    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.fillStyle = "#cccccc";
     ctx.font = "bold 28px Arial";
     ctx.textAlign = "right";
-    ctx.fillText(`${i + 1}`, 96, rowY + 56);
+    ctx.fillText(`${i + 1}`, 96, rowY + 58);
 
     // Flag
     ctx.font = "48px 'Apple Color Emoji','Noto Color Emoji',serif";
     ctx.textAlign = "left";
-    ctx.fillText(countryCodeToFlag(countryCode), 108, rowY + 62);
+    ctx.fillText(countryCodeToFlag(countryCode), 108, rowY + 64);
 
     // City name
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = "#111111";
     ctx.font = "bold 34px Arial";
     ctx.textAlign = "left";
-    ctx.fillText(name, 186, rowY + 46);
+    ctx.fillText(name, 186, rowY + 48);
 
     // Country name
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fillStyle = "#888888";
     ctx.font = "24px Arial";
-    ctx.fillText(country || "", 186, rowY + 76);
+    ctx.fillText(country || "", 186, rowY + 78);
 
-    // Activity count (right-aligned, orange pill)
+    // Activity count (right-aligned, orange)
     const countStr = `${count} activit${count === 1 ? "y" : "ies"}`;
     ctx.font = "bold 26px Arial";
     ctx.textAlign = "right";
     ctx.fillStyle = "#fc4c02";
-    ctx.fillText(countStr, W - 60, rowY + 56);
+    ctx.fillText(countStr, W - 60, rowY + 58);
 
     // Divider
     if (i < topCities.length - 1) {
-      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = "rgba(0,0,0,0.06)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(40, rowY + CITY_ROW_H);
@@ -202,7 +213,7 @@ function generateShareCard({ athlete, totalActivities, totalKm, countries, citie
   });
 
   // ── Footer ──────────────────────────────────────────────────────────────────
-  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.fillStyle = "#bbbbbb";
   ctx.font = "28px Arial";
   ctx.textAlign = "center";
   ctx.fillText("strava-globe.vercel.app", W / 2, H - 52);
