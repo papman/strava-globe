@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Landing from "./components/Landing.jsx";
 import MapView from "./components/MapView.jsx";
 import Admin from "./components/Admin.jsx";
+import SummaryPage from "./components/SummaryPage.jsx";
 
 import API from "./api.js";
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
@@ -58,6 +59,16 @@ export default function App() {
         element={
           athlete ? (
             <MapView athlete={athlete} onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/summary"
+        element={
+          athlete ? (
+            <SummaryPage athlete={athlete} />
           ) : (
             <Navigate to="/" replace />
           )

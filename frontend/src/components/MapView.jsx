@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   APIProvider,
   Map,
@@ -303,6 +304,7 @@ function MapContent({ activities, onHover, onHoverEnd, onTap, isMobile }) {
 // ─── MapView page ─────────────────────────────────────────────────────────────
 
 export default function MapView({ athlete, onLogout }) {
+  const navigate = useNavigate();
   const { activities, loading, progress, error, rateLimitWait, cachedAt, refresh } = useActivities();
   const isMobile = useIsMobile();
   const [hiddenTypes, setHiddenTypes] = useState(new Set());
@@ -380,6 +382,13 @@ export default function MapView({ athlete, onLogout }) {
               Synced {timeAgo(cachedAt)}
             </span>
           )}
+          <button
+            onClick={() => navigate("/summary")}
+            style={styles.statsBtn}
+            title="View my stats"
+          >
+            {isMobile ? "📊" : "📊 My Stats"}
+          </button>
           <button onClick={refresh} style={styles.refreshBtn} title="Re-sync from Strava">
             ↻
           </button>
@@ -914,6 +923,17 @@ const styles = {
     fontSize: "12px",
     color: "#777",
     cursor: "pointer",
+  },
+  statsBtn: {
+    background: "#fff7f3",
+    border: "1px solid #fdddd0",
+    borderRadius: "8px",
+    padding: "5px 12px",
+    fontSize: "12px",
+    color: "#fc4c02",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontFamily: "inherit",
   },
   cachedLabel: {
     fontSize: "12px",
