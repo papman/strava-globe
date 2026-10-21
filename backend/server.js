@@ -10,6 +10,32 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const IS_PROD = process.env.NODE_ENV === "production";
 
+// Production must not boot with a missing session secret or admin password.
+// Local development keeps a fallback so the app still starts, and warns.
+function resolveSecret(name, devFallback) {
+  const value = (process.env[name] || "").trim();
+  if (value) return value;
+  if (IS_PROD) return null;
+  console.warn(
+    `Warning: ${name} is not set. Using a development-only fallback. Set ${name} in the environment before deploying.`
+  );
+  return devFallback;
+}
+
+const SESSION_SECRET = resolveSecret("SESSION_SECRET", "strava-globe-secret-change-me");
+const ADMIN_PASSWORD = resolveSecret("ADMIN_PASSWORD", "admin");
+
+if (IS_PROD && (SESSION_SECRET === null || ADMIN_PASSWORD === null)) {
+  const missing = [
+    SESSION_SECRET === null ? "SESSION_SECRET" : null,
+    ADMIN_PASSWORD === null ? "ADMIN_PASSWORD" : null,
+  ].filter(Boolean);
+  console.error(
+    `Refusing to start: ${missing.join(" and ")} must be set when NODE_ENV=production.`
+  );
+  process.exit(1);
+}
+
 // ─── Database ─────────────────────────────────────────────────────────────────
 
 const pool = new Pool({
@@ -70,7 +96,7 @@ app.use(
       tableName: "session",
       pruneSessionInterval: 60 * 15, // prune expired sessions every 15 min
     }),
-    secret: process.env.SESSION_SECRET || "strava-globe-secret-change-me",
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -221,8 +247,6 @@ app.get("/api/me", requireAuth, (req, res) => {
 });
 
 // ─── Admin routes ─────────────────────────────────────────────────────────────
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin";
 
 app.post("/admin/login", (req, res) => {
   const { password } = req.body;
