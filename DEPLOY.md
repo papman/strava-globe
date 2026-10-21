@@ -42,7 +42,9 @@ Go to your service → **Variables** tab and add:
 | `STRAVA_REDIRECT_URI` | `https://YOUR-BACKEND.up.railway.app/auth/callback` |
 | `FRONTEND_URL` | `https://YOUR-APP.vercel.app` (fill in after Step 3) |
 | `SESSION_SECRET` | a long random string (run `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
-| `ADMIN_PASSWORD` | `Hallam123!` |
+| `ADMIN_PASSWORD` | a strong password you choose (do not commit the real value) |
+
+`NODE_ENV=production` makes the backend refuse to start if `SESSION_SECRET` or `ADMIN_PASSWORD` is missing. Set both in Railway before deploying.
 
 > Copy your Railway backend URL (e.g. `https://strava-globe-backend.up.railway.app`) — you'll need it for Step 3.
 
